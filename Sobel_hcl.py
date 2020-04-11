@@ -17,7 +17,7 @@ A = hcl.placeholder((height,width,3), "A", dtype=hcl.Float())
 Gx = hcl.placeholder((3,3),"Gx",dtype=hcl.Float())
 Gy = hcl.placeholder((3,3),"Gy",dtype=hcl.Float())
 
-#=======================================sobel_algo========================================================================
+#=======================================sobel_algo============================================
 def sobel(A,Gx,Gy):
 
    B = hcl.compute((height,width), lambda x,y: A[x][y][0]+A[x][y][1]+A[x][y][2],"B",dtype=hcl.Float())	
