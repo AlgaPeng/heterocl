@@ -26,11 +26,10 @@ hcl_F = hcl.asarray(np.zeros((height,width)))
 
 #=======================================sobel_x==============================================
 def sobel_x(A,Gx):
-
-   B = hcl.compute((height,width), lambda x,y: A[x][y][0]+A[x][y][1]+A[x][y][2],"B",dtype=hcl.Float())	
-   r = hcl.reduce_axis(0,3)
-   c = hcl.reduce_axis(0,3)
-   return hcl.compute((height,width), lambda x,y: hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+r,y+c]*Gx[r,c], axis=[r,c]), B[x,y]),"X",dtype=hcl.Float())
+    B = hcl.compute((height,width), lambda x,y: A[x][y][0]+A[x][y][1]+A[x][y][2],"B",dtype=hcl.Float())	
+    r = hcl.reduce_axis(0,3)
+    c = hcl.reduce_axis(0,3)
+    return hcl.compute((height,width), lambda x,y: hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+r,y+c]*Gx[r,c], axis=[r,c]), B[x,y]),"X",dtype=hcl.Float())
    
 sx = hcl.create_schedule([A,Gx],sobel_x)
 fx = hcl.build(sx)
@@ -69,50 +68,53 @@ theta = np.arctan2(npY,npX)
 #placeholder for non_max
 
 angle = hcl.placeholder((height,width),"angle")
-
+Z = hcl.placeholder((height,width),"Z")
 for i in range(1,height-1):
     for j in range(1,width-1):
-        d = theta[i][j]*180. / np.pi
-        if(d<0):
-            theta[i][j] = d+180     
+        theta[i][j] = theta[i][j]*180. / np.pi
+        if(theta[i][j]<0):
+            theta[i][j] = theta[i][j]+180     
 
-def non_max_suppression(angle):
-
-    for i in range(1,height-1):
-        for j in range(1,width-1):
-                q = 255
-                r = 255
-                
-               #angle 0
-                with hcl.if_ (0 <= angle[i,j] < 22.5) or (157.5 <= angle[i,j] <= 180):
-                    q = theta[i, j+1]
-                    r = theta[i, j-1]
-                #angle 45
-                with hcl.elif_ (22.5 <= angle[i,j] < 67.5):
-                    q = theta[i+1, j-1]
-                    r = theta[i-1, j+1]
-                #angle 90
-                with hcl.elif_ (67.5 <= angle[i,j] < 112.5):
-                    q = theta[i+1, j]
-                    r = theta[i-1, j]
-                #angle 135
-                with hcl.elif_ (112.5 <= angle[i,j] < 157.5):
-                    q = theta[i-1, j-1]
-                    r = theta[i+1, j+1]
-
-                with hcl.if_ (theta[i,j] >= q) and (theta[i,j] >= r):
-                    Z[i,j] = theta[i,j]
-
-                with hcl.else_:
-                    Z[i,j] = 0
+def non_max_suppression(angle,Z):
+    def loop_body(x,y):
+        q = 255
+        r = 255
+        c1 = hcl.and_((0 <= angle[x,y]), (angle[x,y] < 22.5))
+        c2 = hcl.and_((157.5 <= angle[x,y]) ,(angle[x,y] <= 180))
+        c3 = hcl.and_((22.5 <= angle[x,y]), (angle[x,y]< 67.5))
+        c4 = hcl.and_((67.5 <= angle[x,y]), (angle[x,y]< 112.5))
+        c5 = hcl.and_((112.5 <= angle[x,y]), (angle[x,y]< 157.5))
         
-    return Z
+        #angle 0
+        with hcl.if_ (hcl.or_(c1, c2)):
+            q = angle[x, y+1]
+            r = angle[x, y-1]
+        #angle 45
+        with hcl.elif_ (c3):
+            q = angle[x+1, y-1]
+            r = angle[x-1, y+1]
+        #angle 90
+        with hcl.elif_ (c4):
+            q = angle[x+1, y]
+            r = angle[x-1, y]
+        #angle 135
+        with hcl.elif_ (c5):
+            q = angle[x-1, y-1]
+            r = angle[x+1, y+1]
 
-sd = hcl.create_schedule([angle],non_max_suppression)
+        with hcl.if_ (hcl.and_((angle[x,y] >= q),(angle[x,y] >= r))):
+            Z[x,y] = angle[x,y]
+            
+        with hcl.else_():
+            Z[x,y] = 0
+    hcl.mutate(angle.shape, lambda x,y: loop_body(x,y), "M")
+
+sd = hcl.create_schedule([angle,Z],non_max_suppression)
 fd = hcl.build(sd)
 
 hcl_D = hcl.asarray(np.zeros((height,width)))
-fd(theta, hcl_D)
+hcl_theta = hcl.asarray(theta)
+fd(hcl_theta, hcl_D)
 hpD = hcl_D.asnumpy()
 
 #output image
