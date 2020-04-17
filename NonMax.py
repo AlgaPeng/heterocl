@@ -16,16 +16,13 @@ width,height = img.size
 A = hcl.placeholder((height,width,3), "A", dtype=hcl.Float())
 Gx = hcl.placeholder((3,3),"Gx",dtype=hcl.Float())
 Gy = hcl.placeholder((3,3),"Gy",dtype=hcl.Float())
-npA = np.asarray(img)
-npGx = np.array([[-1,0,1],[-2,0,2],[-1,0,1]])
-npGy = np.array([[1,2,1],[0,0,0],[-1,-2,-1]])
-hcl_A = hcl.asarray(npA)
-hcl_Gx = hcl.asarray(npGx)
-hcl_Gy = hcl.asarray(npGy)
+
+hcl_A = hcl.asarray(np.asarray(img))
+hcl_Gx = hcl.asarray(np.array([[-1,0,1],[-2,0,2],[-1,0,1]]))
+hcl_Gy = hcl.asarray(np.array([[1,2,1],[0,0,0],[-1,-2,-1]]))
 
 #output
-npF = np.zeros((height,width))
-hcl_F = hcl.asarray(npF)
+hcl_F = hcl.asarray(np.zeros((height,width)))
 
 
 #=======================================sobel_x============================================
@@ -34,13 +31,12 @@ def sobel_x(A,Gx):
    B = hcl.compute((height,width), lambda x,y: A[x][y][0]+A[x][y][1]+A[x][y][2],"B",dtype=hcl.Float())	
    r = hcl.reduce_axis(0,3)
    c = hcl.reduce_axis(0,3)
-   return hcl.compute((height,width), lambda x,y: hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+r,y+c]*Gx[r,c], axis=[r,c]), B[x, y]),"X",dtype=hcl.Float())
+   return hcl.compute((height,width), lambda x,y: hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+r,y+c]*Gx[r,c], axis=[r,c]), B[x,y]),"X",dtype=hcl.Float())
    
 sx = hcl.create_schedule([A,Gx],sobel_x)
 fx = hcl.build(sx)
 
-npX = np.zeros((height,width))
-hcl_X = hcl.asarray(npX)
+hcl_X = hcl.asarray(np.zeros((height,width)))
 
 fx(hcl_A, hcl_Gx, hcl_X)
 npX = hcl_X.asnumpy()
@@ -57,8 +53,7 @@ def sobel_y(A,Gy):
 sy = hcl.create_schedule([A,Gy],sobel_y)
 fy = hcl.build(sy)
 
-npY = np.zeros((height,width))
-hcl_Y = hcl.asarray(npY)
+hcl_Y = hcl.asarray(np.zeros((height,width)))
 
 fy(hcl_A, hcl_Gy, hcl_Y)
 npY = hcl_Y.asnumpy()
