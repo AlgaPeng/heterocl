@@ -69,13 +69,15 @@ theta = np.arctan2(npY,npX)
 
 angle = hcl.placeholder((height,width),"angle")
 Z = hcl.placeholder((height,width),"Z")
+image = hcl.placeholder((height,width),"image")
 for i in range(1,height-1):
     for j in range(1,width-1):
         theta[i][j] = theta[i][j]*180. / np.pi
         if(theta[i][j]<0):
             theta[i][j] = theta[i][j]+180     
 
-def non_max_suppression(angle,Z):
+def non_max_suppression(A,angle,Z):
+    image = hcl.compute((height,width), lambda x,y: A[x][y][0]+A[x][y][1]+A[x][y][2],"image",dtype=hcl.Float())	
     def loop_body(x,y):
         q = 255
         r = 255
@@ -87,34 +89,35 @@ def non_max_suppression(angle,Z):
         
         #angle 0
         with hcl.if_ (hcl.or_(c1, c2)):
-            q = angle[x, y+1]
-            r = angle[x, y-1]
+            q = image[x, y+1]
+            r = image[x, y-1]
         #angle 45
         with hcl.elif_ (c3):
-            q = angle[x+1, y-1]
-            r = angle[x-1, y+1]
+            q = image[x+1, y-1]
+            r = image[x-1, y+1]
         #angle 90
         with hcl.elif_ (c4):
-            q = angle[x+1, y]
-            r = angle[x-1, y]
+            q = image[x+1, y]
+            r = image[x-1, y]
         #angle 135
         with hcl.elif_ (c5):
-            q = angle[x-1, y-1]
-            r = angle[x+1, y+1]
+            q = image[x-1, y-1]
+            r = image[x+1, y+1]
 
-        with hcl.if_ (hcl.and_((angle[x,y] >= q),(angle[x,y] >= r))):
-            Z[x,y] = angle[x,y]
+        with hcl.if_ (hcl.and_((image[x,y] >= q),(image[x,y] >= r))):
+            Z[x,y] = image[x,y]
             
         with hcl.else_():
             Z[x,y] = 0
     hcl.mutate(angle.shape, lambda x,y: loop_body(x,y), "M")
 
-sd = hcl.create_schedule([angle,Z],non_max_suppression)
+sd = hcl.create_schedule([A,angle,Z],non_max_suppression)
 fd = hcl.build(sd)
 
 hcl_D = hcl.asarray(np.zeros((height,width)))
 hcl_theta = hcl.asarray(theta)
-fd(hcl_theta, hcl_D)
+hcl_A = hcl.asarray(np.asarray(img))
+fd(hcl_A, hcl_theta, hcl_D)
 hpD = hcl_D.asnumpy()
 
 #output image
