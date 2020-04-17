@@ -24,11 +24,11 @@ def sobel(A,Gx,Gy):
    r = hcl.reduce_axis(0,3)
    c = hcl.reduce_axis(0,3)
 
-   D = hcl.compute((height,width), lambda x,y: hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+r,y+c]*Gx[r,c], axis=[r,c]),"D",dtype=hcl.Float())
+   D = hcl.compute((height,width), lambda x,y: hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+r,y+c]*Gx[r,c], axis=[r,c]),B[x, y]),"D",dtype=hcl.Float())
    t = hcl.reduce_axis(0,3)
    g = hcl.reduce_axis(0,3)
 
-   E = hcl.compute((height,width), lambda x,y:  hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+t,y+g]*Gy[t,g], axis=[t,g]),"E",dtype=hcl.Float())
+   E = hcl.compute((height,width), lambda x,y:  hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+t,y+g]*Gy[t,g], axis=[t,g]),B[x, y]), "E",dtype=hcl.Float())
    return  hcl.compute((height,width), lambda x,y:hcl.sqrt(D[x][y]*D[x][y]+E[x][y]*E[x][y])/4328*255,dtype=hcl.Float())
 
 
