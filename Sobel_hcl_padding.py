@@ -24,12 +24,12 @@ def sobel(A,Gx,Gy):
    r = hcl.reduce_axis(0,3)
    c = hcl.reduce_axis(0,3)
 
-   D = hcl.compute((height-2,width-2), lambda x,y: hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+r,y+c]*Gx[r,c], axis=[r,c]),"D",dtype=hcl.Float())
+   D = hcl.compute((height,width), lambda x,y: hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+r,y+c]*Gx[r,c], axis=[r,c]),"D",dtype=hcl.Float())
    t = hcl.reduce_axis(0,3)
    g = hcl.reduce_axis(0,3)
 
-   E = hcl.compute((height-2,width-2), lambda x,y:  hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+t,y+g]*Gy[t,g], axis=[t,g]),"E",dtype=hcl.Float())
-   return  hcl.compute((height-2,width-2), lambda x,y:hcl.sqrt(D[x][y]*D[x][y]+E[x][y]*E[x][y])/4328*255,dtype=hcl.Float())
+   E = hcl.compute((height,width), lambda x,y:  hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+t,y+g]*Gy[t,g], axis=[t,g]),"E",dtype=hcl.Float())
+   return  hcl.compute((height,width), lambda x,y:hcl.sqrt(D[x][y]*D[x][y]+E[x][y]*E[x][y])/4328*255,dtype=hcl.Float())
 
 
 #===============================================================================================
@@ -46,7 +46,7 @@ hcl_Gx = hcl.asarray(npGx)
 hcl_Gy = hcl.asarray(npGy)
 
 #output
-npF = np.zeros((height-2,width-2))
+npF = np.zeros((height,width))
 hcl_F = hcl.asarray(npF)
 
 #call the function
@@ -54,9 +54,9 @@ f(hcl_A, hcl_Gx,hcl_Gy, hcl_F)
 npF = hcl_F.asnumpy()
 
 #output image
-newimg = np.zeros((height-2,width-2,3))
-for x in range(0, height-2):
-	for y in range(0, width-2):
+newimg = np.zeros((height,width,3))
+for x in range(0, height):
+	for y in range(0, width):
 		for z in range(0,3):
 			newimg[x,y,z]=npF[x,y]
 
