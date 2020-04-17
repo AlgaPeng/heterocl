@@ -39,7 +39,7 @@ f = hcl.build(s)
 
 #filters
 npA = np.array(img)
-npGx = np.array([[1,0,-1],[2,0,-2],[1,0,-1]])
+npGx = np.array([[-1,0,1],[-2,0,2],[-1,0,1]])
 npGy = np.array([[1,2,1],[0,0,0],[-1,-2,-1]])
 hcl_A = hcl.asarray(npA)
 hcl_Gx = hcl.asarray(npGx)
