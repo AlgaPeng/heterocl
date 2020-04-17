@@ -74,15 +74,12 @@ for i in range(1,height-1):
     for j in range(1,width-1):
         d = theta[i][j]*180. / np.pi
         if(d<0):
-            theta[i][j] = d+180
-        
+            theta[i][j] = d+180     
 
 def non_max_suppression(angle):
 
     for i in range(1,height-1):
         for j in range(1,width-1):
-                with hcl.if_():
-                    pass
                 q = 255
                 r = 255
                 
