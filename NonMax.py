@@ -115,15 +115,15 @@ sd = hcl.create_schedule([angle],non_max_suppression)
 fd = hcl.build(sd)
 
 hcl_D = hcl.asarray(np.zeros((height,width)))
-fx(theta, hcl_D)
-
+fd(theta, hcl_D)
+hpD = hcl_D.asnumpy()
 
 #output image
 newimg = np.zeros((height,width,3))
 for x in range(0, height):
 	for y in range(0, width):
 		for z in range(0,3):
-			newimg[x,y,z]=theta[x,y]
+			newimg[x,y,z]=hpD[x,y]
 
 newimg = newimg.astype(np.uint8)
 imageio.imsave("Will_sobel.jpg",newimg)
