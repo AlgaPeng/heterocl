@@ -8,7 +8,7 @@ import imageio
 hcl.init(init_dtype=hcl.Float())
 
 #image path
-path = "Will.jpg"
+path = "home.jpg"
 img = Image.open(path)
 width,height = img.size
 
@@ -18,11 +18,32 @@ Gx = hcl.placeholder((3,3),"Gx",dtype=hcl.Float())
 Gy = hcl.placeholder((3,3),"Gy",dtype=hcl.Float())
 
 hcl_A = hcl.asarray(np.asarray(img))
-hcl_Gx = hcl.asarray(np.array([[-1,0,1],[-2,0,2],[-1,0,1]]))
+hcl_Gx = hcl.asarray(np.array([[1,0,-1],[2,0,-2],[1,0,-1]]))
 hcl_Gy = hcl.asarray(np.array([[1,2,1],[0,0,0],[-1,-2,-1]]))
 
 #output
-hcl_F = hcl.asarray(np.zeros((height,width)))
+hcl_img = hcl.asarray(np.zeros((height,width)))
+
+#=======================================sobel_algo============================================
+def sobel(A,Gx,Gy):
+
+   B = hcl.compute((height,width), lambda x,y: A[x][y][0]+A[x][y][1]+A[x][y][2],"B",dtype=hcl.Float())	
+   r = hcl.reduce_axis(0,3)
+   c = hcl.reduce_axis(0,3)
+
+   D = hcl.compute((height,width), lambda x,y: hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+r,y+c]*Gx[r,c], axis=[r,c]),B[x, y]),"D",dtype=hcl.Float())
+   t = hcl.reduce_axis(0,3)
+   g = hcl.reduce_axis(0,3)
+
+   E = hcl.compute((height,width), lambda x,y:  hcl.select(hcl.and_(x>0, x<(height -1), y>0, y<(width-1)), hcl.sum(B[x+t,y+g]*Gy[t,g], axis=[t,g]),B[x, y]), "E",dtype=hcl.Float())
+   return  hcl.compute((height,width), lambda x,y:hcl.sqrt(D[x][y]*D[x][y]+E[x][y]*E[x][y])/4328*255,dtype=hcl.Float())
+
+s = hcl.create_schedule([A,Gx,Gy],sobel)
+f = hcl.build(s)
+
+#call the function
+f(hcl_A, hcl_Gx,hcl_Gy, hcl_img)
+npImg = hcl_img.asnumpy()
 
 #=======================================sobel_x==============================================
 def sobel_x(A,Gx):
@@ -55,11 +76,6 @@ hcl_Y = hcl.asarray(np.zeros((height,width)))
 
 fy(hcl_A, hcl_Gy, hcl_Y)
 npY = hcl_Y.asnumpy()
-
-#============================================================================================
-
-G = np.hypot(npX, npY)
-G = G/G.max()*255
 theta = np.arctan2(npY,npX)
 
 #===================================Non_Max===================================================
@@ -70,55 +86,56 @@ theta = np.arctan2(npY,npX)
 angle = hcl.placeholder((height,width),"angle")
 Z = hcl.placeholder((height,width),"Z")
 image = hcl.placeholder((height,width),"image")
-for i in range(1,height-1):
-    for j in range(1,width-1):
+for i in range(0,height-1):
+    for j in range(0,width-1):
         theta[i][j] = theta[i][j]*180. / np.pi
         if(theta[i][j]<0):
             theta[i][j] = theta[i][j]+180     
 
-def non_max_suppression(A,angle,Z):
-    image = hcl.compute((height,width), lambda x,y: A[x][y][0]+A[x][y][1]+A[x][y][2],"image",dtype=hcl.Float())	
+def non_max_suppression(image,angle,Z):
     def loop_body(x,y):
         q = 255
         r = 255
-        c1 = hcl.and_((0 <= angle[x,y]), (angle[x,y] < 22.5))
-        c2 = hcl.and_((157.5 <= angle[x,y]) ,(angle[x,y] <= 180))
-        c3 = hcl.and_((22.5 <= angle[x,y]), (angle[x,y]< 67.5))
-        c4 = hcl.and_((67.5 <= angle[x,y]), (angle[x,y]< 112.5))
-        c5 = hcl.and_((112.5 <= angle[x,y]), (angle[x,y]< 157.5))
+        c1 = hcl.and_((0 <= angle[x][y]), (angle[x][y] < 22.5))
+        c2 = hcl.and_((157.5 <= angle[x][y]) ,(angle[x][y] <= 180))
+        c3 = hcl.and_((22.5 <= angle[x][y]), (angle[x][y]< 67.5))
+        c4 = hcl.and_((67.5 <= angle[x][y]), (angle[x][y]< 112.5))
+        c5 = hcl.and_((112.5 <= angle[x][y]), (angle[x][y]< 157.5))
         
         #angle 0
         with hcl.if_ (hcl.or_(c1, c2)):
-            q = image[x, y+1]
-            r = image[x, y-1]
+            q = image[x][ y+1]
+            r = image[x][ y-1]
         #angle 45
         with hcl.elif_ (c3):
-            q = image[x+1, y-1]
-            r = image[x-1, y+1]
+            q = image[x+1][ y-1]
+            r = image[x-1][ y+1]
         #angle 90
         with hcl.elif_ (c4):
-            q = image[x+1, y]
-            r = image[x-1, y]
+            q = image[x+1][ y]
+            r = image[x-1,][y]
         #angle 135
         with hcl.elif_ (c5):
             q = image[x-1, y-1]
             r = image[x+1, y+1]
 
         with hcl.if_ (hcl.and_((image[x,y] >= q),(image[x,y] >= r))):
-            Z[x,y] = image[x,y]
+            Z[x][y] = image[x][y]
             
         with hcl.else_():
-            Z[x,y] = 0
-    hcl.mutate(angle.shape, lambda x,y: loop_body(x,y), "M")
+            Z[x][y] = 0
+    hcl.mutate(Z.shape, lambda x,y: loop_body(x,y), "M")
 
-sd = hcl.create_schedule([A,angle,Z],non_max_suppression)
+sd = hcl.create_schedule([image,angle,Z],non_max_suppression)
 fd = hcl.build(sd)
 
 hcl_D = hcl.asarray(np.zeros((height,width)))
 hcl_theta = hcl.asarray(theta)
-hcl_A = hcl.asarray(np.asarray(img))
-fd(hcl_A, hcl_theta, hcl_D)
+hcl_img = hcl.asarray(npImg)
+fd(hcl_img, hcl_theta, hcl_D)
 hpD = hcl_D.asnumpy()
+
+#===============================================================================================
 
 #output image
 newimg = np.zeros((height,width,3))
@@ -128,4 +145,4 @@ for x in range(0, height):
 			newimg[x,y,z]=hpD[x,y]
 
 newimg = newimg.astype(np.uint8)
-imageio.imsave("Will_sobel.jpg",newimg)
+imageio.imsave("home_canny.jpg",newimg)
