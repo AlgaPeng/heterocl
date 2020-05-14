@@ -9,13 +9,13 @@ path = "home.jpg"
 img = Image.open(path)
 width,height = img.size
 
-A = hcl.placeholder((height+2,width+2,3), "A")
+A = hcl.placeholder((height,width,3), "A")
 Gx = hcl.placeholder((3,3),"Gx")
 Gy = hcl.placeholder((3,3),"Gy")
 
 def sobel(A,Gx,Gy):
 
-   B = hcl.compute((height+2,width+2), lambda x,y: A[x][y][0]+A[x][y][1]+A[x][y][2],"B")	
+   B = hcl.compute((height,width), lambda x,y: A[x][y][0]+A[x][y][1]+A[x][y][2],"B")	
    r = hcl.reduce_axis(0,3)
    c = hcl.reduce_axis(0,3)
    D = hcl.compute((height, width), lambda x,y: hcl.select(hcl.and_(x>0,x<(height-1),y>0,y<(width-1)), hcl.sum(B[x+r,y+c]*Gx[r,c],axis=[r,c]), B[x,y]), "Gx")
